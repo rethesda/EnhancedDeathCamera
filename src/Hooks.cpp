@@ -8,13 +8,6 @@ namespace Hooks
 {
 	namespace detail
 	{
-		void SetHudMode(const char* a_mode, bool a_enable)
-		{
-			using func_t = decltype(&SetHudMode);
-			REL::Relocation<func_t> func{ RELOCATION_ID(50747, 51642) };
-			return func(a_mode, a_enable);
-		}
-
 		RE::ThirdPersonState* GetThirdPersonState(const RE::PlayerCamera* a_camera)
 		{
 			return a_camera->IsInThirdPerson() ? static_cast<RE::ThirdPersonState*>(a_camera->currentState.get()) : nullptr;
@@ -39,7 +32,7 @@ namespace Hooks
 				}
 				a_playerCamera->ForceThirdPerson();
 			} else {
-				switch (a_camSettings->camType) {
+				switch (a_camSettings->GetCamType()) {
 				case Camera::CAM::kThird:
 					{
 						if (settings->UseAltThirdPersonCam()) {
@@ -62,14 +55,14 @@ namespace Hooks
 				}
 			}
 
-			detail::SetHudMode("VATSPlayback", a_camSettings->hideUI);
+			RE::HUDData::GenerateHUDMessage("VATSPlayback", a_camSettings->hideUI);
 
 			if (const auto VATS = RE::VATS::GetSingleton()) {
 				VATS->SetMagicTimeSlowdown(a_camSettings->timeMult, a_camSettings->timeMultPC);
 			}
 
 			if (const auto tps = detail::GetThirdPersonState(a_playerCamera)) {
-				switch (a_camSettings->thirdPersonStateType) {
+				switch (a_camSettings->GetTPSType()) {
 				case Camera::TPS::kFreeRotation:
 					tps->freeRotationEnabled = true;
 					break;
@@ -111,19 +104,12 @@ namespace Hooks
 		void InputWhenKnockedOut()  //nops out "player->IsKnockedOut()", enable input during ragdoll
 		{
 			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(41288, 42338), OFFSET(0xF2, 0x171) };  //PlayerControls::ShouldProcessPlayerInput, inlined into PerformInputProcessing in AE
-
-#ifdef SKYRIM_AE
-			constexpr std::array<std::uint8_t, 6> nops{ 0x66, 0x0F, 0x1F, 0x44, 0x0, 0x0 };
-#else
-			constexpr std::array<std::uint8_t, 2> nops{ 0x66, 0x90 };
-#endif
-
-			REL::safe_write(target.address(), nops.data(), nops.size());
+			REL::WriteSafeFill(target.address(), REL::NOP, OFFSET(2,6));
 		}
 
 		void DoGetUpAction()  //camera->state[bleedout] to camera->state[thirdperson/free]
 		{
-			const auto ragdollCamType = Settings::GetSingleton()->GetRagdollCamera()->camType;
+			const auto ragdollCamType = Settings::GetSingleton()->GetRagdollCamera()->GetCamType();
 
 			struct Patch : Xbyak::CodeGenerator
 			{
@@ -137,7 +123,7 @@ namespace Hooks
 			patch.ready();
 
 			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(39086, 40150), OFFSET(0xC7, 0x412) };  //Actor::DoGetUpAction, inlined into Actor::DoGetUp in AE
-			REL::safe_write(target.address(), std::span{ patch.getCode(), patch.getSize() });
+			REL::WriteSafe(target.address(), std::span{ patch.getCode(), patch.getSize() });
 		}
 	}
 
@@ -152,22 +138,22 @@ namespace Hooks
 
 		const bool useAltTPS = settings->UseAltThirdPersonCam();
 
-		if (useAltTPS && (deathCam->enableCam && deathCam->camType == Camera::CAM::kThird || ragdollCam->enableCam && ragdollCam->camType == Camera::CAM::kThird)) {
+		if (useAltTPS && (deathCam->enableCam && deathCam->GetCamType() == Camera::CAM::kThird || ragdollCam->enableCam && ragdollCam->GetCamType() == Camera::CAM::kThird)) {
 			BLEEDOUT::Install();
-			logger::info("patching bleedout cam");
+			REX::INFO("patching bleedout cam");
 		}
 
 		if (ragdollCam->enableCam) {
-			if (!useAltTPS || ragdollCam->camType == Camera::CAM::kUFO) {
+			if (!useAltTPS || ragdollCam->GetCamType() == Camera::CAM::kUFO) {
 				PATCH::DoGetUpAction();
 			}
 			RAGDOLL::Install();
-			logger::info("patching ragdoll cam");
+			REX::INFO("patching ragdoll cam");
 		}
 
 		if (deathCam->enableCam) {
 			DEATH::Install();
-			logger::info("patching death cam");
+			REX::INFO("patching death cam");
 		}
 	}
 

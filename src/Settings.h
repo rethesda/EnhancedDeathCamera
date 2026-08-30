@@ -22,40 +22,42 @@ public:
 		kLocked
 	};
 
-	explicit Camera(TYPE a_type, std::string a_typeStr, CAM a_camType, TPS a_tpsType) :
+	explicit Camera(TYPE a_type, std::string_view a_section, CAM a_camType, TPS a_tpsType) :
 		type(a_type),
-		typeStr(std::move(a_typeStr)),
-		camType(a_camType),
-		thirdPersonStateType(a_tpsType)
+		typeStr(a_section),
+		enableCam(a_section, "Enable", true),
+		camType(a_section, "Camera Type", std::to_underlying(a_camType)),
+		hideUI(a_section, "Hide UI", true),
+		thirdPersonStateType(a_section, "Rotation Type (third person)", std::to_underlying(a_tpsType)),
+		timeMult(a_section, "Time speed multiplier", 0.8f),
+		timeMultPC(a_section, "Time speed multiplier (Player)", 0.8f)
 	{}
 
 	virtual ~Camera() = default;
-	virtual void LoadSettings(CSimpleIniA& a_ini, bool a_writeComments);
+
+	[[nodiscard]] CAM GetCamType() const { return static_cast<CAM>(camType.GetValue()); }
+	[[nodiscard]] TPS GetTPSType() const { return static_cast<TPS>(thirdPersonStateType.GetValue()); }
 
 	// members
-	TYPE type;
-	std::string typeStr;
+	TYPE                    type;
+	std::string_view        typeStr;
+	REX::TIniSetting<bool>  hideUI;
+	REX::TIniSetting<bool>  enableCam;
+	REX::TIniSetting<bool>  hideUI;
+	REX::TIniSetting<float> timeMult;
+	REX::TIniSetting<float> timeMultPC;
+	bool                    improvedCamCompability{ false };
 
-	bool enableCam{ true };
-	bool hideUI{ true };
-
-	// 0 - third, 1 - ufo
-	CAM camType;
-
-	float timeMult{ 0.8f };
-	float timeMultPC{ 0.8f };
-
-	// 0 - free rotation, 1 - animator cam, 2 - locked
-	TPS thirdPersonStateType;
-
-	bool improvedCamCompability{ false };
+private:
+	REX::TIniSetting<std::uint32_t> camType;               // 0 - third, 1 - ufo
+	REX::TIniSetting<std::uint32_t> thirdPersonStateType;  // 0 - free rotation, 1 - animator cam, 2 - locked
 };
 
 class RagdollCamera final : public Camera
 {
 public:
 	explicit RagdollCamera(CAM a_camType, TPS a_tpsType) :
-		Camera(TYPE::kRagdoll, "Ragdoll Camera", a_camType, a_tpsType)
+		Camera(TYPE::kRagdoll, "Ragdoll Camera"sv, a_camType, a_tpsType)
 	{}
 };
 
@@ -63,58 +65,40 @@ class DeathCamera final : public Camera
 {
 public:
 	explicit DeathCamera(CAM a_camType, TPS a_tpsType) :
-		Camera(TYPE::kDeath, "Death Camera", a_camType, a_tpsType)
+		Camera(TYPE::kDeath, "Death Camera"sv, a_camType, a_tpsType),
+		moveCamToKiller("Death Camera"sv, "Snap Camera To Killer", false),
+		setWhenDead("Death Camera"sv, "Set when dead", true),
+		camDuration("Death Camera"sv, "Camera Duration", 5)
 	{}
 
-	void LoadSettings(CSimpleIniA& a_ini, bool a_writeComments) override;
-
-	bool moveCamToKiller{ false };
-	bool setWhenDead{ true };
-
-	std::uint32_t camDuration{ 5 };
+	// members
+	REX::TIniSetting<bool>          moveCamToKiller;
+	REX::TIniSetting<bool>          setWhenDead;
+	REX::TIniSetting<std::uint32_t> camDuration;
 };
 
-class Settings
+class Settings : public REX::TSingleton<Settings>
 {
 public:
-	[[nodiscard]] static Settings* GetSingleton()
-	{
-		static Settings singleton;
-		return std::addressof(singleton);
-	}
+	void Load();
 
-	DeathCamera* GetDeathCamera();
-	RagdollCamera* GetRagdollCamera();
+	DeathCamera*   GetDeathCamera() { return &deathCam; }
+	RagdollCamera* GetRagdollCamera() { return &ragdollCam; }
 
-	[[nodiscard]] RE::ACTOR_LIFE_STATE GetDeadState() const;
-
-	[[nodiscard]] bool GetUseImprovedCam() const;
-	[[nodiscard]] bool UseAltThirdPersonCam() const;
+	[[nodiscard]] RE::ACTOR_LIFE_STATE GetDeadState() const { return deadState; }
+	[[nodiscard]] bool                 GetUseImprovedCam() const { return improvedCamInstalled; }
+	[[nodiscard]] bool                 UseAltThirdPersonCam() const { return altTPSMode; }
 
 private:
-	Settings()
-	{
-		LoadSettings();
-	}
-
-	void LoadSettings();
-
 	void CheckImprovedCamera();
 	void CheckSmoothCam();
 
-	DeathCamera deathCam{
-		Camera::CAM::kUFO,
-		Camera::TPS::kAnimatorCam
-	};
+	static constexpr auto path = R"(Data\SKSE\Plugins\po3_EnhancedDeathCamera.ini)"sv;
 
-	RagdollCamera ragdollCam{
-		Camera::CAM::kThird,
-		Camera::TPS::kLocked
-	};
-
+	// members
+	DeathCamera          deathCam{ Camera::CAM::kUFO, Camera::TPS::kAnimatorCam };
+	RagdollCamera        ragdollCam{ Camera::CAM::kThird, Camera::TPS::kLocked };
 	RE::ACTOR_LIFE_STATE deadState{ RE::ACTOR_LIFE_STATE::kDead };
-
-	bool altTPSMode{ false };
-
-	bool improvedCamInstalled{ false };
+	bool                 altTPSMode{ false };
+	bool                 improvedCamInstalled{ false };
 };
