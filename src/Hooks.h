@@ -4,7 +4,7 @@ class Camera;
 
 namespace Hooks
 {
-	inline bool gameReloaded{ false };
+	inline std::atomic<bool> gameReloaded{ false };
 
 	namespace detail
 	{

@@ -1,3 +1,6 @@
+
+#include "BleedoutCam.h"
+
 #include "Hooks.h"
 #include "Settings.h"
 
@@ -10,20 +13,17 @@ namespace Hooks::BLEEDOUT
 			BeginTPS(a_state);
 
 			if (const auto player = RE::PlayerCharacter::GetSingleton()) {
-				const Camera* cam;
-				if (player->IsDead()) {
-					cam = Settings::GetSingleton()->GetDeathCamera();
-				} else {
-					cam = Settings::GetSingleton()->GetRagdollCamera();
-				}
+				const Camera* cam = player->IsDead() ?
+				                        static_cast<const Camera*>(Settings::GetSingleton()->GetDeathCamera()) :
+				                        static_cast<const Camera*>(Settings::GetSingleton()->GetRagdollCamera());
 
-				detail::SetHudMode("VATSPlayback", cam->hideUI);
+				RE::HUDData::GenerateHUDMessage("VATSPlayback", cam->hideUI);
 
 				if (const auto VATS = RE::VATS::GetSingleton()) {
 					VATS->SetMagicTimeSlowdown(cam->timeMult, cam->timeMultPC);
 				}
 
-				switch (cam->thirdPersonStateType) {
+				switch (cam->GetTPSType()) {
 				case Camera::TPS::kFreeRotation:
 					a_state->freeRotationEnabled = true;
 					break;
@@ -63,7 +63,7 @@ namespace Hooks::BLEEDOUT
 		{
 			EndTPS(a_state);
 
-			detail::SetHudMode("VATSPlayback", false);
+			RE::HUDData::GenerateHUDMessage("VATSPlayback", false);
 			if (const auto VATS = RE::VATS::GetSingleton()) {
 				VATS->SetMagicTimeSlowdown(0.0f, 0.0f);
 			}

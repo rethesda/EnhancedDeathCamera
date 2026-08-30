@@ -1,5 +1,4 @@
-#include "Hooks.h"
-#include "Settings.h"
+#include "DeathCam.h"
 
 namespace Hooks::DEATH
 {
@@ -31,33 +30,22 @@ namespace Hooks::DEATH
 		}
 	};
 
-	struct StartBleedoutMode
+	namespace BleedoutMode
 	{
-		static void thunk(RE::PlayerCamera* a_camera)
+		void Install()
 		{
-			if (!detail::SetCamera(a_camera, Settings::GetSingleton()->GetDeathCamera())) {
-				return func(a_camera);
-			}
-		}
-		static inline REL::Relocation<decltype(thunk)> func;
+			REL::Relocation<std::uintptr_t> target_0{ RELOCATION_ID(36872, 37896), OFFSET(0x107E, 0x1122) };
+			stl::write_thunk_call<StartBleedoutMode<0>>(target_0.address());
 
-		static void Install()
-		{
-			std::array targets{
-				std::make_pair(RELOCATION_ID(36872, 37896), OFFSET(0x107E, 0x1122)),  // Actor::KillImpl (Death)
-				std::make_pair(RELOCATION_ID(36604, 37612), OFFSET(0x47F, 0x408))     // Actor::SetLifeState (Bleedout)
-			};
 
-			for (const auto& [id, offset] : targets) {
-				REL::Relocation<std::uintptr_t> target{ id, offset };
-				stl::write_thunk_call<StartBleedoutMode>(target.address());
-			}
+			REL::Relocation<std::uintptr_t> target_1{ RELOCATION_ID(36604, 37612), OFFSET(0x47F, 0x408) };
+			stl::write_thunk_call<StartBleedoutMode<1>>(target_1.address());
 		}
-	};
+	}
 
 	void Install()
 	{
-		StartBleedoutMode::Install();
+		BleedoutMode::Install();
 
 		const auto settings = Settings::GetSingleton();
 		if (!settings->UseAltThirdPersonCam() && settings->GetDeathCamera()->moveCamToKiller) {

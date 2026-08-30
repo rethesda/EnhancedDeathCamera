@@ -16,7 +16,7 @@ namespace Hooks::RAGDOLL
 			}
 
 			detail::TogglePOVSwitchOff();
-			detail::SetHudMode("VATSPlayback", false);
+			RE::HUDData::GenerateHUDMessage("VATSPlayback", false);
 
 			func(a_vats, a_magicTimeSlowdown, a_playerMagicTimeSlowdown);
 		}
@@ -82,10 +82,10 @@ namespace Hooks::RAGDOLL
 		StartBleedoutMode::Install();
 
 		const auto settings = Settings::GetSingleton();
-		if (!settings->UseAltThirdPersonCam() || settings->GetRagdollCamera()->camType == Camera::CAM::kUFO) {
+		if (!settings->UseAltThirdPersonCam() || settings->GetRagdollCamera()->GetCamType() == Camera::CAM::kUFO) {
 			SetMagicTimeSlowdown::Install();
 		}
-		if (settings->GetRagdollCamera()->camType == Camera::CAM::kUFO) {
+		if (settings->GetRagdollCamera()->GetCamType() == Camera::CAM::kUFO) {
 			UpdateAnimation::Install();
 		}
 	}

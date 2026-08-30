@@ -25,12 +25,12 @@ public:
 	explicit Camera(TYPE a_type, std::string_view a_section, CAM a_camType, TPS a_tpsType) :
 		type(a_type),
 		typeStr(a_section),
-		enableCam(a_section, "Enable", true),
-		camType(a_section, "Camera Type", std::to_underlying(a_camType)),
-		hideUI(a_section, "Hide UI", true),
-		thirdPersonStateType(a_section, "Rotation Type (third person)", std::to_underlying(a_tpsType)),
-		timeMult(a_section, "Time speed multiplier", 0.8f),
-		timeMultPC(a_section, "Time speed multiplier (Player)", 0.8f)
+		enableCam(a_section, "bEnable", true),
+		camType(a_section, "iCameraType", std::to_underlying(a_camType)),
+		hideUI(a_section, "bHideUI", true),
+		thirdPersonStateType(a_section, "iThirdPersonRotationType", std::to_underlying(a_tpsType)),
+		timeMult(a_section, "fTimeSpeedMult", 0.8f),
+		timeMultPC(a_section, "fTimeSpeedPlayerMult", 0.8f)
 	{}
 
 	virtual ~Camera() = default;
@@ -39,18 +39,17 @@ public:
 	[[nodiscard]] TPS GetTPSType() const { return static_cast<TPS>(thirdPersonStateType.GetValue()); }
 
 	// members
-	TYPE                    type;
-	std::string_view        typeStr;
-	REX::TIniSetting<bool>  hideUI;
-	REX::TIniSetting<bool>  enableCam;
-	REX::TIniSetting<bool>  hideUI;
-	REX::TIniSetting<float> timeMult;
-	REX::TIniSetting<float> timeMultPC;
-	bool                    improvedCamCompability{ false };
+	TYPE             type;
+	std::string_view typeStr;
 
-private:
-	REX::TIniSetting<std::uint32_t> camType;               // 0 - third, 1 - ufo
+	REX::TIniSetting<bool>          enableCam;
+	REX::TIniSetting<std::uint32_t> camType;  // 0 - third, 1 - fly
+	REX::TIniSetting<bool>          hideUI;
 	REX::TIniSetting<std::uint32_t> thirdPersonStateType;  // 0 - free rotation, 1 - animator cam, 2 - locked
+	REX::TIniSetting<float>         timeMult;
+	REX::TIniSetting<float>         timeMultPC;
+
+	bool improvedCamCompability{ false };
 };
 
 class RagdollCamera final : public Camera
@@ -66,9 +65,9 @@ class DeathCamera final : public Camera
 public:
 	explicit DeathCamera(CAM a_camType, TPS a_tpsType) :
 		Camera(TYPE::kDeath, "Death Camera"sv, a_camType, a_tpsType),
-		moveCamToKiller("Death Camera"sv, "Snap Camera To Killer", false),
-		setWhenDead("Death Camera"sv, "Set when dead", true),
-		camDuration("Death Camera"sv, "Camera Duration", 5)
+		moveCamToKiller("Death Camera"sv, "bSnapCameraToKiller", false),
+		setWhenDead("Death Camera"sv, "bSnapCameraWhenDead", true),
+		camDuration("Death Camera"sv, "iCameraDuration", 5)
 	{}
 
 	// members

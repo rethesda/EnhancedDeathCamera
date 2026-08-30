@@ -17,7 +17,7 @@ namespace Hooks
 		{
 			if (Settings::GetSingleton()->GetUseImprovedCam()) {
 				if (const auto controlMap = RE::ControlMap::GetSingleton()) {
-					controlMap->ToggleControls(RE::ControlMap::UEFlag::kPOVSwitch, false);
+					controlMap->ToggleControls(RE::ControlMap::UEFlag::kPOVSwitch, false, false);
 				}
 			}
 		}
@@ -87,15 +87,24 @@ namespace Hooks
 		{
 			gameReloaded = false;
 
-			const auto camDuration = Settings::GetSingleton()->GetDeathCamera()->camDuration;
+			const auto camDuration = Settings::GetSingleton()->GetDeathCamera()->camDuration.GetValue();
 			std::this_thread::sleep_for(std::chrono::seconds(camDuration));
 
-			if (!gameReloaded) {
-				RE::SubtitleManager::GetSingleton()->KillSubtitles();
+			if (gameReloaded) {
+				return;
+			}
+
+			SKSE::GetTaskInterface()->AddTask([]() {
+				if (gameReloaded) {
+					return;
+				}
+				if (const auto subtitles = RE::SubtitleManager::GetSingleton()) {
+					subtitles->KillSubtitles();
+				}
 				if (!RE::BGSSaveLoadManager::GetSingleton()->LoadMostRecentSaveGame()) {
 					RE::Main::GetSingleton()->resetGame = true;
 				}
-			}
+			});
 		}
 	}
 
@@ -103,7 +112,7 @@ namespace Hooks
 	{
 		void InputWhenKnockedOut()  //nops out "player->IsKnockedOut()", enable input during ragdoll
 		{
-			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(41288, 42338), OFFSET(0xF2, 0x171) };  //PlayerControls::ShouldProcessPlayerInput, inlined into PerformInputProcessing in AE
+			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(41288, 42338), OFFSET_VERSIONED(0xF2, 0x171, 0x168) };  //PlayerControls::ShouldProcessPlayerInput, inlined into PerformInputProcessing in AE
 			REL::WriteSafeFill(target.address(), REL::NOP, OFFSET(2,6));
 		}
 
@@ -130,6 +139,7 @@ namespace Hooks
 	void InstallOnPostLoad()
 	{
 		const auto settings = Settings::GetSingleton();
+		settings->Load();
 
 		PATCH::InputWhenKnockedOut();
 

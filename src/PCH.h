@@ -29,10 +29,28 @@ namespace stl
 	}
 }
 
+namespace Runtime
+{
+	inline constexpr REL::Version SSE_1_7_99(1, 7, 99, 0);
+	inline constexpr REL::Version MIN_ADDRESS_LIBRARY_V5 = SSE_1_7_99;
+
+	[[nodiscard]] inline bool IsAtLeast1_7_99() noexcept
+	{
+		static bool result = REX::FModule::GetExecutingModule().GetFileVersion() >= Runtime::SSE_1_7_99;
+		return result;
+	}
+}
+
 #ifdef SKYRIM_AE
 #	define OFFSET(se, ae) ae
+#	define OFFSET_VERSIONED(se, ae, ae1799) \
+		(Runtime::IsAtLeast1_7_99() ? (ae1799) : (ae))
+#	define RELOCATION_ID_VERSIONED(se, ae, ae1799) \
+		REL::ID(Runtime::IsAtLeast1_7_99() ? (ae1799) : (ae))
 #else
 #	define OFFSET(se, ae) se
+#	define OFFSET_VERSIONED(se, ae, ae1799) se
+#	define RELOCATION_ID_VERSIONED(se, ae, ae1799) REL::ID(se)
 #endif
 
 #include "Version.h"
